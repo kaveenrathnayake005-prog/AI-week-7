@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sri Lanka Road Accident Risk Predictor v5.0</title>
+<style>
+  :root {
+    --bg:#0d1117; --bg2:#161b22; --bg3:#21262d; --border:#30363d;
+    --text:#e6edf3; --muted:#8b949e; --green:#2ea043; --yellow:#d29922;
+    --red:#da3633; --blue:#58a6ff; --purple:#bc8cff; --orange:#f0883e;
+    --gold:#ffd700; --teal:#39d353;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:'Segoe UI',sans-serif; min-height:100vh; }
+
+  /* HEADER */
+  header { background:var(--bg2); border-bottom:1px solid var(--border); padding:14px 24px; display:flex; align-items:center; justify-content:space-between; }
+  header h1 { font-size:16px; font-weight:700; }
+  .acc-badge { background:var(--bg3); border:1px solid var(--border); border-radius:20px; padding:4px 14px; font-size:12px; color:var(--teal); }
+
+  /* TABS */
+  .tabs { display:flex; background:var(--bg2); border-bottom:1px solid var(--border); padding:0 16px; }
+  .tab { padding:12px 18px; cursor:pointer; font-size:13px; font-weight:600; color:var(--muted); border-bottom:2px solid transparent; transition:all .2s; }
+  .tab.active { color:var(--gold); border-bottom-color:var(--gold); }
+  .tab-content { display:none; } .tab-content.active { display:block; }
+
+  /* LAYOUT */
+  .planner { display:grid; grid-template-columns:1fr 1.5fr; gap:0; height:calc(100vh - 100px); }
+  .left-panel { background:var(--bg2); border-right:1px solid var(--border); overflow-y:auto; padding:20px; }
+  .right-panel { overflow-y:auto; padding:20px; background:var(--bg); }
+
+  /* FORM */
+  .section-title { color:var(--gold); font-size:13px; font-weight:700; margin:16px 0 8px; }
+  .route-row { display:grid; grid-template-columns:1fr 30px 1fr; gap:8px; align-items:center; margin-bottom:8px; }
+  .arrow { text-align:center; color:var(--gold); font-size:20px; font-weight:700; }
+  label { font-size:11px; color:var(--muted); display:block; margin-bottom:4px; }
+  select, input[type=range] { width:100%; background:var(--bg3); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:8px 10px; font-size:13px; outline:none; }
+  select:focus { border-color:var(--blue); }
+  .field { margin-bottom:12px; }
+  .slider-row { display:flex; align-items:center; gap:10px; }
+  .slider-val { min-width:60px; font-size:13px; font-weight:700; color:var(--blue); }
+  input[type=range] { padding:4px 0; accent-color:var(--blue); }
+
+  .btn-analyse { width:100%; padding:14px; background:var(--blue); color:#000; font-size:15px; font-weight:700; border:none; border-radius:8px; cursor:pointer; margin-top:16px; transition:opacity .2s; }
+  .btn-analyse:hover { opacity:.85; }
+  .btn-analyse:disabled { opacity:.5; cursor:not-allowed; }
+  .btn-reset { width:100%; padding:8px; background:var(--bg3); color:var(--orange); font-size:12px; font-weight:700; border:1px solid var(--border); border-radius:6px; cursor:pointer; margin-top:8px; }
+
+  /* DIST PREVIEW */
+  .dist-preview { font-size:11px; color:var(--teal); margin:4px 0 0; min-height:16px; }
+
+  /* RESULTS */
+  .await-msg { text-align:center; color:var(--border); font-size:18px; font-weight:700; padding:80px 20px; line-height:1.6; }
+
+  /* GAUGE */
+  .gauge-wrap { text-align:center; margin-bottom:16px; }
+  .gauge-svg { display:block; margin:0 auto; }
+
+  /* BADGE */
+  .trip-badge { background:var(--bg3); border:2px solid var(--border); border-radius:10px; padding:16px 20px; margin-bottom:16px; }
+  .trip-from { color:var(--green); font-size:14px; font-weight:700; }
+  .trip-arrow { color:var(--gold); font-size:12px; margin:2px 0; }
+  .trip-to   { color:var(--red);   font-size:14px; font-weight:700; }
+  .trip-info { color:var(--muted); font-size:11px; margin-top:6px; }
+  .divider   { border:none; border-top:1px solid var(--border); margin:12px 0; }
+  .overall-risk { font-size:28px; font-weight:700; text-align:center; padding:8px 0 4px; }
+  .overall-conf { font-size:12px; text-align:center; color:var(--muted); padding-bottom:8px; }
+
+  /* PROVINCE */
+  .prov-title { font-size:13px; font-weight:700; color:var(--muted); margin-bottom:8px; }
+  .prov-row { display:flex; justify-content:space-between; align-items:center; padding:6px 10px; border-radius:6px; margin-bottom:4px; border:1px solid; }
+
+  /* SEGMENTS */
+  .seg-title { font-size:13px; font-weight:700; color:var(--muted); margin:16px 0 8px; }
+  .seg-card { border-radius:8px; border:1px solid; margin-bottom:8px; display:flex; overflow:hidden; }
+  .seg-strip { width:5px; flex-shrink:0; }
+  .seg-body  { flex:1; padding:10px 12px; }
+  .seg-name  { font-size:12px; font-weight:700; color:var(--text); }
+  .seg-info  { font-size:10px; color:var(--muted); margin:3px 0 6px; }
+  .seg-bar   { height:8px; border-radius:4px; display:flex; overflow:hidden; }
+  .seg-badge { padding:10px 12px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:11px; font-weight:700; min-width:60px; }
+
+  /* TIPS */
+  .tips-box { background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin:12px 0; }
+  .tips-title { font-size:13px; font-weight:700; color:var(--muted); margin-bottom:8px; }
+  .tip-item { font-size:12px; color:var(--teal); margin-bottom:6px; line-height:1.5; }
+
+  /* ADVICE */
+  .advice-box { background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin:12px 0; }
+  .advice-title { font-size:13px; font-weight:700; color:var(--muted); margin-bottom:8px; }
+  .advice-text { font-size:12px; color:var(--text); line-height:1.7; white-space:pre-line; }
+
+  /* COLORS */
+  .c-green  { color:var(--green); } .c-yellow { color:var(--yellow); } .c-red { color:var(--red); }
+  .bc-green { border-color:var(--green); } .bc-yellow { border-color:var(--yellow); } .bc-red { border-color:var(--red); }
+  .bg-green { background:var(--green); } .bg-yellow { background:var(--yellow); } .bg-red { background:var(--red); }
+
+  /* LOADING */
+  .loading { text-align:center; padding:40px; color:var(--blue); font-size:14px; }
+  .spinner { display:inline-block; width:24px; height:24px; border:3px solid var(--border); border-top-color:var(--blue); border-radius:50%; animation:spin .8s linear infinite; margin-bottom:8px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* ABOUT TAB */
+  .about { max-width:800px; margin:40px auto; padding:0 20px; }
+  .about h2 { color:var(--gold); font-size:22px; margin-bottom:16px; }
+  .about p  { color:var(--muted); font-size:14px; line-height:1.8; margin-bottom:12px; }
+  .feature-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin:24px 0; }
+  .feature-card { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:20px; text-align:center; }
+  .feature-card .icon { font-size:28px; margin-bottom:10px; }
+  .feature-card h3 { color:var(--blue); font-size:14px; margin-bottom:6px; }
+  .feature-card p  { color:var(--muted); font-size:12px; line-height:1.5; }
+  .stat-row { display:flex; gap:16px; margin:20px 0; }
+  .stat { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:16px 20px; flex:1; text-align:center; }
+  .stat-num { font-size:28px; font-weight:700; color:var(--teal); }
+  .stat-lbl { font-size:12px; color:var(--muted); margin-top:4px; }
+
+  @media(max-width:768px) {
+    .planner { grid-template-columns:1fr; height:auto; }
+    .feature-grid { grid-template-columns:1fr; }
+    .stat-row { flex-direction:column; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🚗 Sri Lanka Road Accident Risk Predictor &nbsp;<span style="color:var(--gold)">v5.0</span></h1>
+  <span class="acc-badge">Model Accuracy: {{ accuracy }}%</span>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('planner')">🗺️ Route Planner</div>
+  <div class="tab" onclick="showTab('about')">ℹ️ About</div>
+</div>
+
+<!-- ROUTE PLANNER TAB -->
+<div id="tab-planner" class="tab-content active">
+<div class="planner">
+
+  <!-- LEFT: INPUT FORM -->
+  <div class="left-panel">
+    <div class="section-title">📍 Origin & Destination</div>
+    <div class="route-row">
+      <div>
+        <label>🟢 FROM</label>
+        <select id="origin" onchange="updatePreview()">
+          <option value="">-- Select --</option>
+          {% for d in districts %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="arrow">→</div>
+      <div>
+        <label>🔴 TO</label>
+        <select id="dest" onchange="updatePreview()">
+          <option value="">-- Select --</option>
+          {% for d in districts %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="dist-preview" id="dist-preview"></div>
+
+    <div class="section-title">🌦️ Journey Conditions</div>
+
+    <div class="field"><label>🌤️ Weather</label>
+      <select id="weather">
+        {% for w in weathers %}<option value="{{ w }}">{{ w }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>🚙 Vehicle Type</label>
+      <select id="vehicle">
+        {% for v in vehicles %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>🕐 Time of Day</label>
+      <select id="time_of_day">
+        {% for t in times %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>🚦 Road Condition</label>
+      <select id="road_condition">
+        {% for r in road_conditions %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>💡 Light Condition</label>
+      <select id="light_condition">
+        {% for l in light_conditions %}<option value="{{ l }}">{{ l }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>📅 Day</label>
+      <select id="day">
+        {% for d in days %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>🗓️ Month</label>
+      <select id="month">
+        <option value="1">January</option><option value="2">February</option>
+        <option value="3">March</option><option value="4">April</option>
+        <option value="5">May</option><option value="6" selected>June</option>
+        <option value="7">July</option><option value="8">August</option>
+        <option value="9">September</option><option value="10">October</option>
+        <option value="11">November</option><option value="12">December</option>
+      </select>
+    </div>
+
+    <div class="section-title">👤 Driver Details</div>
+    <div class="field">
+      <label>⚡ Speed: <span id="speed-val" style="color:var(--blue);font-weight:700">70 km/h</span></label>
+      <input type="range" id="speed" min="5" max="180" value="70" oninput="document.getElementById('speed-val').textContent=this.value+' km/h'">
+    </div>
+    <div class="field">
+      <label>👤 Driver Age: <span id="age-val" style="color:var(--purple);font-weight:700">32 yrs</span></label>
+      <input type="range" id="age" min="18" max="80" value="32" oninput="document.getElementById('age-val').textContent=this.value+' yrs'">
+    </div>
+    <div class="field">
+      <label>🏅 Experience: <span id="exp-val" style="color:var(--orange);font-weight:700">8 yrs</span></label>
+      <input type="range" id="experience" min="0" max="45" value="8" oninput="document.getElementById('exp-val').textContent=this.value+' yrs'">
+    </div>
+
+    <button class="btn-analyse" id="btn-analyse" onclick="analyse()">🔍 ANALYSE TRIP RISK</button>
+    <button class="btn-reset" onclick="resetForm()">🔄 RESET</button>
+  </div>
+
+  <!-- RIGHT: RESULTS -->
+  <div class="right-panel" id="results-panel">
+    <div class="await-msg" id="await-msg">⬅ Set your trip<br>and click<br>ANALYSE TRIP RISK</div>
+    <div id="results" style="display:none"></div>
+  </div>
+
+</div>
+</div>
+
+<!-- ABOUT TAB -->
+<div id="tab-about" class="tab-content">
+<div class="about">
+  <h2>🚗 Sri Lanka Road Accident Risk Predictor v5.0</h2>
+  <p>An AI-powered road safety analysis system that predicts accident risk for any route across all 25 districts of Sri Lanka. Built using a Random Forest classifier trained on 3,000 synthetic road accident records.</p>
+
+  <div class="stat-row">
+    <div class="stat"><div class="stat-num">{{ accuracy }}%</div><div class="stat-lbl">Model Accuracy</div></div>
+    <div class="stat"><div class="stat-num">25</div><div class="stat-lbl">Districts</div></div>
+    <div class="stat"><div class="stat-num">3,000</div><div class="stat-lbl">Training Records</div></div>
+    <div class="stat"><div class="stat-num">200</div><div class="stat-lbl">Decision Trees</div></div>
+  </div>
+
+  <div class="feature-grid">
+    <div class="feature-card"><div class="icon">🗺️</div><h3>Route Planner</h3><p>BFS pathfinding across Sri Lanka's district road network with per-segment risk analysis</p></div>
+    <div class="feature-card"><div class="icon">🤖</div><h3>AI Prediction</h3><p>Random Forest with 12 features including weather, time, vehicle type, driver profile and road conditions</p></div>
+    <div class="feature-card"><div class="icon">📊</div><h3>Risk Gauge</h3><p>Visual 0-100 risk score gauge showing overall journey safety at a glance</p></div>
+    <div class="feature-card"><div class="icon">🏛️</div><h3>Province Summary</h3><p>Risk breakdown by province for every district your route passes through</p></div>
+    <div class="feature-card"><div class="icon">💡</div><h3>Smart Tips</h3><p>Context-aware safety tips based on your exact conditions — vehicle, weather, time and route</p></div>
+    <div class="feature-card"><div class="icon">🛣️</div><h3>Segment Analysis</h3><p>Individual risk assessment for every road segment with probability breakdown</p></div>
+  </div>
+
+  <p style="color:var(--muted);font-size:12px;margin-top:20px;">Built by Kaveen Rathnayake &nbsp;|&nbsp; Sri Lanka &nbsp;|&nbsp; 2026</p>
+</div>
+</div>
+
+<script>
+const DISTRICTS = {{ districts | tojson }};
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['planner','about'][i]===name));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+function haversine(d1, d2, distData) {
+  const R=6371, toR=Math.PI/180;
+  const [la1,lo1]=[distData[d1].lat, distData[d1].lon];
+  const [la2,lo2]=[distData[d2].lat, distData[d2].lon];
+  const dlat=(la2-la1)*toR, dlon=(lo2-lo1)*toR;
+  const a=Math.sin(dlat/2)**2+Math.cos(la1*toR)*Math.cos(la2*toR)*Math.sin(dlon/2)**2;
+  return R*2*Math.asin(Math.sqrt(a))*1.45;
+}
+
+let distData = {};
+fetch('/districts').then(r=>r.json()).then(d=>{ distData=d.data; });
+
+function updatePreview() {
+  const o=document.getElementById('origin').value;
+  const d=document.getElementById('dest').value;
+  const el=document.getElementById('dist-preview');
+  if(!o||!d){el.textContent='';return;}
+  if(o===d){el.textContent='⚠️ Same origin and destination';return;}
+  if(Object.keys(distData).length>0){
+    fetch('/predict',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({origin:o,dest:d,weather:'Clear',vehicle:'Car',time_of_day:'Midday (9-15)',road_condition:'Dry',light_condition:'Daylight',day:'Weekday',speed:70,age:32,experience:8,month:6})
+    }).then(r=>r.json()).then(data=>{
+      if(data.route){
+        const hops=data.route.length-1;
+        el.textContent=`📏 ~${data.total_km} km | ${hops} segment${hops!==1?'s':''} | ${data.route.length>2?'via '+data.route.slice(1,-1).join(' → '):'direct'}`;
+      }
+    }).catch(()=>{});
+  }
+}
+
+function analyse() {
+  const origin=document.getElementById('origin').value;
+  const dest=document.getElementById('dest').value;
+  if(!origin){alert('Please select a FROM district!');return;}
+  if(!dest){alert('Please select a TO district!');return;}
+  if(origin===dest){alert('Origin and destination cannot be the same!');return;}
+
+  const btn=document.getElementById('btn-analyse');
+  btn.disabled=true; btn.textContent='⏳ Analysing...';
+  document.getElementById('await-msg').style.display='none';
+  document.getElementById('results').style.display='none';
+  document.getElementById('results-panel').innerHTML='<div class="loading"><div class="spinner"></div><br>Analysing route risk...</div>';
+
+  const payload={
+    origin, dest,
+    weather:document.getElementById('weather').value,
+    vehicle:document.getElementById('vehicle').value,
+    time_of_day:document.getElementById('time_of_day').value,
+    road_condition:document.getElementById('road_condition').value,
+    light_condition:document.getElementById('light_condition').value,
+    day:document.getElementById('day').value,
+    speed:parseInt(document.getElementById('speed').value),
+    age:parseInt(document.getElementById('age').value),
+    experience:parseInt(document.getElementById('experience').value),
+    month:parseInt(document.getElementById('month').value),
+  };
+
+  fetch('/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+  .then(r=>r.json())
+  .then(data=>{
+    btn.disabled=false; btn.textContent='🔍 ANALYSE TRIP RISK';
+    if(data.error){alert(data.error);return;}
+    renderResults(data, origin, dest);
+  })
+  .catch(err=>{
+    btn.disabled=false; btn.textContent='🔍 ANALYSE TRIP RISK';
+    document.getElementById('results-panel').innerHTML='<div class="loading" style="color:var(--red)">❌ Error: '+err.message+'</div>';
+  });
+}
+
+function renderResults(data, origin, dest) {
+  const clr={Low:'var(--green)',Medium:'var(--yellow)',High:'var(--red)'};
+  const lbl={Low:'✅ LOW RISK',Medium:'⚠️ MEDIUM RISK',High:'🚨 HIGH RISK'};
+  const cls={Low:'green',Medium:'yellow',High:'red'};
+  const ov=data.overall;
+
+  // Gauge SVG
+  const score=data.gauge;
+  const gaugeAngle=score/100*180;
+  const r=60, cx=120, cy=80;
+  function arcPath(startDeg, endDeg){
+    const s=startDeg*Math.PI/180, e=endDeg*Math.PI/180;
+    const x1=cx+r*Math.cos(Math.PI-s), y1=cy-r*Math.sin(Math.PI-s);
+    const x2=cx+r*Math.cos(Math.PI-e), y2=cy-r*Math.sin(Math.PI-e);
+    return `M ${x1} ${y1} A ${r} ${r} 0 ${endDeg-startDeg>180?1:0} 1 ${x2} ${y2}`;
+  }
+  const fillCol=score<34?'var(--green)':score<67?'var(--yellow)':'var(--red)';
+  const gaugeSVG=`<svg width="240" height="100" class="gauge-svg">
+    <path d="${arcPath(0,180)}" fill="none" stroke="var(--bg3)" stroke-width="14" stroke-linecap="round"/>
+    ${score>0?`<path d="${arcPath(0,gaugeAngle)}" fill="none" stroke="${fillCol}" stroke-width="14" stroke-linecap="round"/>`:''}
+    <text x="${cx}" y="${cy-8}" text-anchor="middle" fill="${score===0?'var(--muted)':fillCol}" font-size="22" font-weight="700" font-family="Segoe UI">${score===0?'—':score}</text>
+    <text x="${cx}" y="${cy+10}" text-anchor="middle" fill="var(--text)" font-size="9" font-weight="700" font-family="Segoe UI">RISK SCORE</text>
+    <text x="${cx-r-6}" y="${cy+4}" text-anchor="end" fill="var(--green)" font-size="8" font-weight="700" font-family="Segoe UI">SAFE</text>
+    <text x="${cx+r+6}" y="${cy+4}" text-anchor="start" fill="var(--red)" font-size="8" font-weight="700" font-family="Segoe UI">DANGER</text>
+  </svg>`;
+
+  // Segment cards
+  const segCards = data.segments.map((s,i)=>{
+    const c=cls[s.risk];
+    const pLow=(s.prob.Low||0)*180, pMed=(s.prob.Medium||0)*180, pHigh=(s.prob.High||0)*180;
+    return `<div class="seg-card bc-${c}" style="border-color:${clr[s.risk]}">
+      <div class="seg-strip bg-${c}"></div>
+      <div class="seg-body">
+        <div class="seg-name">Segment ${i+1}: ${s.from}${s.to?' → '+s.to:' (Destination)'}</div>
+        <div class="seg-info">🛣️ ${s.road_type} &nbsp;|&nbsp; 📏 ${s.km} km &nbsp;|&nbsp; ${s.province} Province</div>
+        <div class="seg-bar">
+          ${pLow>0?`<div style="width:${pLow}px;background:var(--green)"></div>`:''}
+          ${pMed>0?`<div style="width:${pMed}px;background:var(--yellow)"></div>`:''}
+          ${pHigh>0?`<div style="width:${pHigh}px;background:var(--red)"></div>`:''}
+        </div>
+      </div>
+      <div class="seg-badge" style="background:${clr[s.risk]};color:${s.risk==='Medium'?'#000':'#fff'}">
+        ${s.risk.toUpperCase()}<br>${s.conf}%
+      </div>
+    </div>`;
+  }).join('');
+
+  // Province summary
+  const provMap={};
+  data.segments.forEach(s=>{ if(!provMap[s.province]) provMap[s.province]=[]; provMap[s.province].push(s.risk); });
+  const provCards=Object.entries(provMap).map(([prov,risks])=>{
+    const worst=risks.includes('High')?'High':risks.includes('Medium')?'Medium':'Low';
+    const icon={Low:'✅',Medium:'⚠️',High:'🚨'}[worst];
+    return `<div class="prov-row" style="border-color:${clr[worst]};background:var(--bg3)">
+      <span>${icon} <strong>${prov}</strong></span>
+      <span style="color:${clr[worst]};font-weight:700;font-size:12px">${worst}</span>
+    </div>`;
+  }).join('');
+
+  // Tips
+  const tipsHTML=data.tips.map(t=>`<div class="tip-item">${t}</div>`).join('');
+
+  // Advice
+  const adviceMap={
+    Low:`✅ JOURNEY LOOKS SAFE (${origin} → ${dest})\n\n• Estimated distance: ~${data.total_km} km through ${data.segments.length} segments.\n• Conditions appear favourable. Maintain speed limits throughout.\n• Take breaks every 2 hours on long journeys.\n• Wear seatbelt. Stay alert — conditions can change mid-route.`,
+    Medium:`⚠️ MODERATE RISK JOURNEY (${origin} → ${dest})\n\n• Estimated distance: ~${data.total_km} km — ${data.segments.length} segments assessed.\n• Some segments show elevated risk. Reduce speed in those areas.\n• Avoid distractions. Keep a greater following distance.\n• If weather worsens, pull over safely and wait it out.`,
+    High:`🚨 HIGH RISK JOURNEY (${origin} → ${dest})\n\n• Estimated distance: ~${data.total_km} km — multiple dangerous segments detected.\n• STRONGLY consider postponing or taking an alternate route.\n• If travel is essential, drive at minimum safe speed.\n• Inform someone of your route and estimated arrival time.\n• Keep phone charged. Turn on hazard lights if conditions worsen.`,
+  };
+
+  const via=data.route.length>2?'→ '+data.route.slice(1,-1).join(' → ')+' →':'↓';
+
+  document.getElementById('results-panel').innerHTML = `
+    <div class="gauge-wrap">${gaugeSVG}</div>
+    <div class="trip-badge" style="border-color:${clr[ov]}">
+      <div class="trip-from">🟢 FROM: ${origin}</div>
+      <div class="trip-arrow">&nbsp;&nbsp;&nbsp;${via}</div>
+      <div class="trip-to">🔴 TO: &nbsp;&nbsp;&nbsp;${dest}</div>
+      <div class="trip-info">📏 ~${data.total_km} km &nbsp;|&nbsp; ${data.segments.length} segments</div>
+      <hr class="divider">
+      <div class="overall-risk" style="color:${clr[ov]}">${lbl[ov]}</div>
+      <div class="overall-conf" style="color:${clr[ov]}">Overall Confidence: ${data.avg_conf}%</div>
+    </div>
+
+    <div class="prov-title">🏛️ Province Risk Summary</div>
+    ${provCards}
+
+    <div class="seg-title">🛣️ Route Segments</div>
+    ${segCards}
+
+    <div class="tips-box">
+      <div class="tips-title">💡 Smart Safety Tips</div>
+      ${tipsHTML}
+    </div>
+
+    <div class="advice-box">
+      <div class="advice-title">🔊 Safety Advice</div>
+      <div class="advice-text">${adviceMap[ov]}</div>
+    </div>
+  `;
+}
+
+function resetForm() {
+  document.getElementById('origin').value='';
+  document.getElementById('dest').value='';
+  document.getElementById('weather').value='Clear';
+  document.getElementById('vehicle').value='Car';
+  document.getElementById('time_of_day').selectedIndex=2;
+  document.getElementById('road_condition').value='Dry';
+  document.getElementById('light_condition').value='Daylight';
+  document.getElementById('day').value='Weekday';
+  document.getElementById('speed').value=70;
+  document.getElementById('age').value=32;
+  document.getElementById('experience').value=8;
+  document.getElementById('speed-val').textContent='70 km/h';
+  document.getElementById('age-val').textContent='32 yrs';
+  document.getElementById('exp-val').textContent='8 yrs';
+  document.getElementById('dist-preview').textContent='';
+  document.getElementById('results-panel').innerHTML='<div class="await-msg">⬅ Set your trip<br>and click<br>ANALYSE TRIP RISK</div>';
+}
+</script>
+</body>
+</html>
